@@ -2,3 +2,6 @@ misc
 *.env
 cookbook.db
 *.exe*
+.gocache
+*.db-journal
+*.pyc

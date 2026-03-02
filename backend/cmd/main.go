@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -24,19 +23,25 @@ func init() {
 
 	env := *ENV_FILE
 	if len(env) == 0 {
-		l.Default.Fatal(".env file not presented")
+		return
 	}
 
-	if _, err := os.Stat(env); errors.Is(err, os.ErrNotExist) {
-		l.Default.Fatal(".env file not found")
-	} else {
-		if err := godotenv.Load(env); err != nil {
-			l.Default.Fatal("cannot load .env file")
+	if err := godotenv.Load(env); err != nil {
+		l.Default.Fatalf("cannot load .env file: %v", err)
+	}
+}
+
+func requireEnv(keys ...string) {
+	for _, key := range keys {
+		if os.Getenv(key) == "" {
+			l.Default.Fatalf("required env var is not set: %s", key)
 		}
 	}
 }
 
 func main() {
+	requireEnv("DEBUG", "DATABASE_FILE", "ADMIN_USERNAME", "ADMIN_PASSWORD")
+
 	// Parse DEBUG-mode from env
 	var DEBUG bool
 	switch os.Getenv("DEBUG") {

@@ -18,8 +18,6 @@ RUN apk add --no-cache git
 
 COPY backend/go.mod backend/go.sum ./
 
-ENV GOPROXY=https://goproxy.io,direct
-ENV GOSUMDB=off
 RUN go mod download
 
 COPY backend/ ./
@@ -31,15 +29,16 @@ FROM nginx:alpine
 
 RUN apk add --no-cache supervisor sqlite
 
+RUN adduser -D -u 1000 -g 'app' app
+
 COPY --from=frontend-builder /build/dist /usr/share/nginx/html
-
 COPY --from=backend-builder /build/main /app/main
-
 COPY nginx.conf /etc/nginx/nginx.conf
-
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-RUN chmod +x /app/main
+RUN mkdir -p /app/data && \
+    chown -R app:app /app && \
+    chmod +x /app/main
 
 EXPOSE 80
 
