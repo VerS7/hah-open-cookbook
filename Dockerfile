@@ -33,12 +33,15 @@ RUN adduser -D -u 1000 -g 'app' app
 
 COPY --from=frontend-builder /build/dist /usr/share/nginx/html
 COPY --from=backend-builder /build/main /app/main
+COPY backup.sh /app/backup.sh
+COPY crontab.root /etc/crontabs/root
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN mkdir -p /app/data && \
+    chmod 600 /etc/crontabs/root && \
     chown -R app:app /app && \
-    chmod +x /app/main
+    chmod +x /app/main /app/backup.sh
 
 EXPOSE 80
 
