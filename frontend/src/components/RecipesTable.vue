@@ -52,6 +52,83 @@
   justify-content: center;
   backdrop-filter: blur(15px);
 }
+
+.item-name-cell {
+  position: relative;
+  max-width: 320px;
+  min-width: 0;
+  min-height: calc(2 * 1.25em);
+}
+
+.item-name-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+  max-height: calc(2 * 1.25em);
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  cursor: text;
+  user-select: text;
+}
+
+.item-name-cell.is-expanded {
+  z-index: 20;
+}
+
+.item-name-cell.is-expanded .item-name-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  display: block;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(560px, 60vw);
+  padding: 10px 14px;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+  animation: item-name-fade-in 0.2s ease;
+  cursor: text;
+  user-select: text;
+}
+
+@keyframes item-name-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.screenshot-mode .item-name-cell {
+  max-width: none;
+  min-height: auto;
+}
+
+.screenshot-mode .item-name-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
 </style>
 
 <template>
@@ -98,7 +175,7 @@
       ></v-progress-circular>
     </div>
 
-    <div ref="recipesRef">
+    <div ref="recipesRef" :class="{ 'screenshot-mode': screenshotCapturing }">
       <v-data-table-server
         class="data-table"
         item-value="id"
@@ -126,6 +203,17 @@
               style="width: 100%; height: 100%"
             />
           </v-icon>
+        </template>
+
+        <template #[`item.itemName`]="{ item }">
+          <div
+            class="item-name-cell"
+            :class="{ 'is-expanded': expandedNameId === item.id }"
+            @mouseenter="handleNameEnter(item.id, $event)"
+            @mouseleave="handleNameLeave"
+          >
+            <span class="item-name-text">{{ item.itemName }}</span>
+          </div>
         </template>
 
         <template #[`item.feps`]="{ item }">
@@ -238,6 +326,7 @@ const category = ref<Category>('total')
 const serverItems = ref<FoodRecipe[]>([])
 const totalItems = ref(0)
 const fep = ref<{ fep: string; order: Order | null }>()
+const expandedNameId = ref<number | null>(null)
 
 const headers: DataTableHeader[] = [
   { title: '', key: 'resourceName', sortable: false },
@@ -350,7 +439,26 @@ function handleScroll() {
   scroll.value = window.scrollY
 }
 
+function handleNameEnter(id: number, event: MouseEvent) {
+  if (screenshotCapturing.value) return
+
+  const cell = event.currentTarget as HTMLElement | null
+  if (!cell) return
+
+  const text = cell.querySelector('.item-name-text') as HTMLElement | null
+  if (!text) return
+
+  const isTruncated = text.scrollHeight > text.clientHeight + 1 || text.scrollWidth > text.clientWidth + 1
+  expandedNameId.value = isTruncated ? id : null
+}
+
+function handleNameLeave() {
+  expandedNameId.value = null
+}
+
 function switchScreenshotingState() {
+  expandedNameId.value = null
+
   if (screenshotCapturing.value) {
     ingredientWidth.value = initialIngredientWidth
     recipesRef.value!.style = 'width: initial'
