@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"slices"
 	"strings"
 	"time"
 
@@ -67,6 +66,18 @@ var Shortcuts = map[string]string{
 	"Will +2":         "wil2",
 	"Psyche +1":       "psy1",
 	"Psyche +2":       "psy2",
+}
+
+var CombinedShortcuts = map[string][2]string{
+	"str": {"str1", "str2"},
+	"agi": {"agi1", "agi2"},
+	"int": {"int1", "int2"},
+	"con": {"con1", "con2"},
+	"prc": {"prc1", "prc2"},
+	"csm": {"csm1", "csm2"},
+	"dex": {"dex1", "dex2"},
+	"wil": {"wil1", "wil2"},
+	"psy": {"psy1", "psy2"},
 }
 
 func (f *FoodRecipe) AsMap() map[string]any {
@@ -386,14 +397,29 @@ func (st *Storage) GetFilteredRecipes(filterString string, sort string, by strin
 		return nil, fmt.Errorf("sorting: '%s' unavailable", sort)
 	}
 
+	nonZeroBy := make(map[string]string)
+	
 	// Sort category
-	categories := make([]string, 0)
-	categories = append(categories, []string{"name", "energy", "hunger", "total", "feph"}...)
+	category := make(map[string]string)
+	category["name"] = "name"
+	category["energy"] = "energy"
+	category["hunger"] = "hunger"
+	category["total"] = "total"
+	category["feph"] = "feph"
+
 	for _, v := range Shortcuts {
-		categories = append(categories, v)
+		category[v] = v
+		nonZeroBy[v] = fmt.Sprintf("COALESCE(%s, 0)", v)
 	}
-	if slices.Contains(categories, by) {
-		sortBy = by
+
+	for fep, values := range CombinedShortcuts {
+		expr := fmt.Sprintf("COALESCE(%s, 0) + COALESCE(%s, 0)", values[0], values[1])
+		category[fep] = expr
+		nonZeroBy[fep] = expr
+	}
+
+	if expr, ok := category[by]; ok {
+		sortBy = expr
 	} else {
 		return nil, fmt.Errorf("sorting by category: '%s' unavailable", by)
 	}
@@ -402,6 +428,19 @@ func (st *Storage) GetFilteredRecipes(filterString string, sort string, by strin
 	query, err := ConstructQuery(conditions)
 	if err != nil {
 		return nil, err
+	}
+
+	// When sorting by FEP key, skip rows where that key equals 0
+	if expr, ok := nonZeroBy[by]; ok {
+		base := query.builder.String()
+		sb := strings.Builder{}
+		sb.WriteString(base)
+		if strings.Contains(strings.ToUpper(base), " WHERE ") {
+			fmt.Fprintf(&sb, " AND (%s) != 0 ", expr)
+		} else {
+			fmt.Fprintf(&sb, " WHERE (%s) != 0 ", expr)
+		}
+		query.builder = sb
 	}
 
 	// Recipes count

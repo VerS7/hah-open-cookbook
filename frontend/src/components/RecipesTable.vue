@@ -110,9 +110,14 @@
         :items-length="totalItems"
         :loading="loading"
         :search="search"
+        :sort-by="sortBy"
         @update:sort-by="handleSort"
         hide-default-footer
       >
+        <template #[`header.feps`]>
+          <fep-control v-model="fep" @update:model-value="handleFepControl"></fep-control>
+        </template>
+
         <template #[`item.resourceName`]="{ item }">
           <v-icon size="2rem">
             <img
@@ -215,20 +220,23 @@ import FepStack from './FepStack.vue'
 import FepBar from './FepBar.vue'
 import PaginationBar from './PaginationBar.vue'
 import IngredientsList from './IngredientsList.vue'
+import HelpBtn from './HelpBtn.vue'
+import FepControl from './FepControl.vue'
 
 import { useRecipes, type Category, type FoodRecipe, type Order } from '@/composables/useRecipe'
 import { useAuth } from '@/composables/useAuth'
 import { useDebounce } from '@/composables/useDebounce'
 import { useScreenshot } from '@/composables/useScreenshot'
-import HelpBtn from './HelpBtn.vue'
 
 const itemsPerPage = ref(50)
 const search = ref('')
 const page = ref(1)
 const sort = ref<Order>('desc')
+const sortBy = ref<Array<{ key: Category; order: Order }>>([])
 const category = ref<Category>('total')
 const serverItems = ref<FoodRecipe[]>([])
 const totalItems = ref(0)
+const fep = ref<{ fep: string; order: Order | null }>()
 
 const headers: DataTableHeader[] = [
   { title: '', key: 'resourceName', sortable: false },
@@ -305,6 +313,17 @@ function handleInput() {
   filterUpdate(search.value)
 }
 
+async function handleFepControl() {
+  if (!fep.value || !fep.value.order) return
+
+  sortBy.value = []
+
+  sort.value = fep.value.order
+  category.value = fep.value.fep as Category
+
+  await load()
+}
+
 async function handleScreenshot() {
   switchScreenshotingState()
 
@@ -336,14 +355,17 @@ function switchScreenshotingState() {
   }
 }
 
-async function handleSort(s: Array<{ key: string; order: string }>) {
-  if (s.length == 0 || s[0] === undefined) {
+async function handleSort(value: Array<{ key: Category; order: Order }>) {
+  if (value.length == 0 || value[0] === undefined) {
     return
   }
-  const sValue = s[0]
 
-  sort.value = sValue.order as Order
-  category.value = sValue.key as Category
+  if (fep.value) fep.value.order = null
+
+  sortBy.value = value
+
+  sort.value = value[0].order as Order
+  category.value = value[0].key as Category
 
   await load()
 }
