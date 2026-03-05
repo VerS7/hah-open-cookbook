@@ -102,6 +102,7 @@
       <v-data-table-server
         class="data-table"
         item-value="id"
+        must-sort
         sort-asc-icon="mdi-chevron-down"
         sort-desc-icon="mdi-chevron-up"
         v-model:items-per-page="itemsPerPage"
@@ -293,7 +294,13 @@ async function load() {
 }
 
 async function loadDefault() {
-  await loadItems('total>0', 'desc', 'total', 1, 50)
+  page.value = 1
+  sort.value = 'desc'
+  category.value = 'total'
+  sortBy.value = [{ key: 'total', order: 'desc' }]
+  if (fep.value) fep.value.order = null
+
+  await loadItems('total>0', sort.value, category.value, page.value, itemsPerPage.value)
 }
 
 async function loadItems(
@@ -356,16 +363,16 @@ function switchScreenshotingState() {
 }
 
 async function handleSort(value: Array<{ key: Category; order: Order }>) {
-  if (value.length == 0 || value[0] === undefined) {
+  sortBy.value = value
+
+  if (sortBy.value.length == 0 || sortBy.value[0] === undefined) {
     return
   }
 
   if (fep.value) fep.value.order = null
 
-  sortBy.value = value
-
-  sort.value = value[0].order as Order
-  category.value = value[0].key as Category
+  sort.value = sortBy.value[0].order as Order
+  category.value = sortBy.value[0].key as Category
 
   await load()
 }

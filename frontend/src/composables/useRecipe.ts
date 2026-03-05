@@ -34,7 +34,7 @@ export type FEP =
   | 'psy2'
 
 export type Order = 'asc' | 'desc'
-export type Category = 'name' | 'hunger' | 'total' | 'energy' | FEP
+export type Category = 'name' | 'hunger' | 'total' | 'energy' | 'feph' | FEP
 
 export interface FoodFEP {
   name: FEP
