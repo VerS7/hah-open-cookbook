@@ -21,21 +21,12 @@ func NewDB(file string) (*Storage, error) {
 	return &Storage{db, sync.RWMutex{}}, nil
 }
 
-func (st *Storage) InitSchema() error {
-	// Init recipes table
-	if _, err := st.db.Exec(RECIPES); err != nil {
-		return err
+func (st *Storage) InitSchemas(schemas ...string) error {
+	for _, schema := range schemas {
+		if _, err := st.db.Exec(schema); err != nil {
+			return err
+		}
 	}
-	// Init ingredients table
-	if _, err := st.db.Exec(INGREDIENTS); err != nil {
-		return err
-	}
-
-	// Init users table
-	if _, err := st.db.Exec(USERS); err != nil {
-		return err
-	}
-
 	return nil
 }
 

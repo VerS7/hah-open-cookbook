@@ -1,6 +1,6 @@
 misc
 *.env
-cookbook.db
+*.db
 *.exe*
 .gocache
 *.db-journal

@@ -13,34 +13,21 @@ import (
 	"open-hah-cookbook/internal/storage"
 )
 
-type APIServer struct {
-	Storage  *storage.Storage
-	recipes  chan storage.FoodRecipe
-	sessions []storage.Session
-	mu       sync.RWMutex
+type RecipesAPIServer struct {
+	Storage *storage.Storage
+	recipes chan storage.FoodRecipe
+	mu      sync.RWMutex
 }
 
-type H map[string]any
-
-func NewAPIServer(st *storage.Storage) *APIServer {
-	return &APIServer{
+func NewRecipesAPIServer(st *storage.Storage) *RecipesAPIServer {
+	return &RecipesAPIServer{
 		st,
 		make(chan storage.FoodRecipe),
-		make([]storage.Session, 0),
 		sync.RWMutex{},
 	}
 }
 
-func WriteJSON(w http.ResponseWriter, statusCode int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		l.Default.Errorf("Cant encode JSON: '%v'", err)
-	}
-}
-
-func (sr *APIServer) RunRecipeListener() {
+func (sr *RecipesAPIServer) RunRecipeListener() {
 	for r := range sr.recipes {
 		if err := sr.Storage.AddRecipe(r); err != nil {
 			l.Default.Error(err)
@@ -49,36 +36,7 @@ func (sr *APIServer) RunRecipeListener() {
 	}
 }
 
-func (sr *APIServer) UpdateSessions() error {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-
-	sessions, err := sr.Storage.GetSessions()
-	if err != nil {
-		return err
-	}
-	sr.sessions = sessions
-	return nil
-}
-
-func (sr *APIServer) HasSession(token string) *storage.Session {
-	sr.mu.RLock()
-	defer sr.mu.RUnlock()
-
-	for _, s := range sr.sessions {
-		if s.AccessToken == token {
-			return &s
-		}
-	}
-	return nil
-}
-
-func (sr *APIServer) TODOHandler(w http.ResponseWriter, r *http.Request) {
-	l.Default.Warn("not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (sr *APIServer) RecipeHandler(w http.ResponseWriter, r *http.Request) {
+func (sr *RecipesAPIServer) RecipeHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		WriteJSON(w, http.StatusBadRequest, H{"error": "cant read request body"})
@@ -104,27 +62,7 @@ func (sr *APIServer) RecipeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (sr *APIServer) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-
-	if len(username) == 0 || len(password) == 0 {
-		WriteJSON(w, http.StatusBadRequest, H{"error": "invalid login form"})
-		return
-	}
-
-	ud, err := sr.Storage.GetUserByName(username)
-	if err != nil || ud.HashedPassword != auth.Hash(password) {
-		WriteJSON(w, http.StatusUnauthorized, H{"error": "invalid username or password"})
-		return
-	}
-
-	sr.UpdateSessions()
-
-	WriteJSON(w, http.StatusOK, H{"username": ud.Name, "token": ud.AccessToken, "isAdmin": ud.IsAdmin})
-}
-
-func (sr *APIServer) FilteredQueryHandler(w http.ResponseWriter, r *http.Request) {
+func (sr *RecipesAPIServer) FilteredQueryHandler(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	by := r.URL.Query().Get("by")
 	filter := r.URL.Query().Get("filter")
@@ -154,7 +92,7 @@ func (sr *APIServer) FilteredQueryHandler(w http.ResponseWriter, r *http.Request
 	WriteJSON(w, http.StatusOK, *recipes)
 }
 
-func (sr *APIServer) ExportHandler(w http.ResponseWriter, r *http.Request) {
+func (sr *RecipesAPIServer) ExportHandler(w http.ResponseWriter, r *http.Request) {
 	exportType := r.URL.Query().Get("type")
 	if exportType == "" {
 		WriteJSON(w, http.StatusBadRequest, H{"error": "empty export type"})
@@ -174,4 +112,78 @@ func (sr *APIServer) ExportHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(data.Len()))
 
 	data.WriteTo(w)
+}
+
+type UsersAPIServer struct {
+	Storage  *storage.Storage
+	sessions []storage.Session
+	mu       sync.RWMutex
+}
+
+func NewUsersAPIServer(st *storage.Storage) *UsersAPIServer {
+	return &UsersAPIServer{
+		st,
+		make([]storage.Session, 0),
+		sync.RWMutex{},
+	}
+}
+
+func (sr *UsersAPIServer) UpdateSessions() error {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+
+	sessions, err := sr.Storage.GetSessions()
+	if err != nil {
+		return err
+	}
+	sr.sessions = sessions
+	return nil
+}
+
+func (sr *UsersAPIServer) HasSession(token string) *storage.Session {
+	sr.mu.RLock()
+	defer sr.mu.RUnlock()
+
+	for _, s := range sr.sessions {
+		if s.AccessToken == token {
+			return &s
+		}
+	}
+	return nil
+}
+
+func (sr *UsersAPIServer) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+
+	if len(username) == 0 || len(password) == 0 {
+		WriteJSON(w, http.StatusBadRequest, H{"error": "invalid login form"})
+		return
+	}
+
+	ud, err := sr.Storage.GetUserByName(username)
+	if err != nil || ud.HashedPassword != auth.Hash(password) {
+		WriteJSON(w, http.StatusUnauthorized, H{"error": "invalid username or password"})
+		return
+	}
+
+	sr.UpdateSessions()
+
+	WriteJSON(w, http.StatusOK, H{"username": ud.Name, "token": ud.AccessToken, "isAdmin": ud.IsAdmin})
+}
+
+func TODOHandler(w http.ResponseWriter, r *http.Request) {
+	l.Default.Warn("not implemented")
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+type H map[string]any
+
+func WriteJSON(w http.ResponseWriter, statusCode int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		l.Default.Errorf("Cant encode JSON: '%v'", err)
+	}
 }

@@ -10,7 +10,7 @@ import (
 	l "open-hah-cookbook/internal/logger"
 )
 
-func (sr *APIServer) LoggingMiddleware(next http.Handler) http.Handler {
+func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -45,7 +45,7 @@ func (sr *APIServer) LoggingMiddleware(next http.Handler) http.Handler {
 	)
 }
 
-func (sr *APIServer) RecoveryMiddleware(next http.Handler) http.Handler {
+func RecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
@@ -59,7 +59,25 @@ func (sr *APIServer) RecoveryMiddleware(next http.Handler) http.Handler {
 	)
 }
 
-func (sr *APIServer) AuthMiddleware(next http.Handler) http.Handler {
+func AllowCORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, Content-Length")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Content-Disposition, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		},
+	)
+}
+
+func (sr *UsersAPIServer) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			token, err := getAuthTokenFromHeaders(r)
@@ -78,7 +96,7 @@ func (sr *APIServer) AuthMiddleware(next http.Handler) http.Handler {
 	)
 }
 
-func (sr *APIServer) AdminMiddleware(next http.Handler) http.Handler {
+func (sr *UsersAPIServer) AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			token, err := getAuthTokenFromHeaders(r)
@@ -98,24 +116,6 @@ func (sr *APIServer) AdminMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r)
-		},
-	)
-}
-
-func (sr *APIServer) AllowCORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, Content-Length")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Content-Disposition, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
 			next.ServeHTTP(w, r)
 		},
 	)
