@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -23,7 +24,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 					r.Method,
 					r.RequestURI,
 					s,
-					r.RemoteAddr,
+					getRequestorIP(r),
 					time.Since(start),
 				)
 
@@ -139,4 +140,23 @@ func getAuthTokenFromHeaders(r *http.Request) (string, error) {
 	}
 
 	return strings.TrimPrefix(authHeader, "Bearer "), nil
+}
+
+func getRequestorIP(r *http.Request) string {
+	forwarded := r.Header.Get("X-Forwarded-For")
+	if forwarded != "" {
+		ips := strings.Split(forwarded, ",")
+		return strings.TrimSpace(ips[0])
+	}
+
+	realIP := r.Header.Get("X-Real-IP")
+	if realIP != "" {
+		return realIP
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
 }
