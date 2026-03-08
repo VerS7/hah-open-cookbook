@@ -85,6 +85,8 @@ func main() {
 	for _, datapath := range dataFiles {
 		filename := strings.Replace(filepath.Base(datapath), filepath.Ext(datapath), "", 1)
 
+		l.Default.Infof("initializing storage with name: '%s' at '%s'...", filename, datapath)
+
 		// Special case for users.db
 		if filename == "users" {
 			if _, err := aggregator.NewStorage(storage.StorageEntryConfig{
@@ -95,6 +97,8 @@ func main() {
 			}); err != nil {
 				l.Default.Fatal(err)
 			}
+
+			continue
 		}
 
 		// Special case for archived bases
@@ -107,6 +111,8 @@ func main() {
 			}); err != nil {
 				l.Default.Fatal(err)
 			}
+
+			continue
 		}
 
 		// Other cases interpret as regular cookbooks
@@ -124,6 +130,8 @@ func main() {
 	if !slices.ContainsFunc(dataFiles, func(v string) bool {
 		return strings.Contains(filepath.Base(v), "users")
 	}) {
+		l.Default.Warn("fallback at initializing 'users' database. Created blank database")
+
 		if _, err := aggregator.NewStorage(storage.StorageEntryConfig{
 			Name:    "users",
 			File:    os.Getenv("DATA_DIR") + "users.db",
@@ -138,9 +146,7 @@ func main() {
 
 	// Default admin
 	users, _ := aggregator.GetEntry("users")
-	if err := users.Storage.AddUser(os.Getenv("ADMIN_USERNAME"), os.Getenv("ADMIN_PASSWORD"), true); err != nil {
-		l.Default.Println(err)
-	}
+	users.Storage.AddUser(os.Getenv("ADMIN_USERNAME"), os.Getenv("ADMIN_PASSWORD"), true)
 
 	// Users server
 	usersServer := api.NewUsersAPIServer(users.Storage)
@@ -159,6 +165,8 @@ func main() {
 			cookbookVersions = append(cookbookVersions, aggregatorEntry.Alias)
 		}
 	}
+
+	l.Default.Infof("cookbook versions found: '%s'", strings.Join(cookbookVersions, ", "))
 
 	rootMux := http.NewServeMux()
 	apiMux := http.NewServeMux()
