@@ -132,6 +132,9 @@
 </style>
 
 <template>
+  <cookbook-versions-bar v-model="cookbookVersion" @update:model-value="loadDefault">
+  </cookbook-versions-bar>
+
   <v-card rounded="xl" class="pa-5 table-container">
     <div class="d-flex justify-space-between flex-nowrap">
       <v-chip>
@@ -316,7 +319,9 @@ import { useRecipes, type Category, type FoodRecipe, type Order } from '@/compos
 import { useAuth } from '@/composables/useAuth'
 import { useDebounce } from '@/composables/useDebounce'
 import { useScreenshot } from '@/composables/useScreenshot'
+import CookbookVersionsBar from './CookbookVersionsBar.vue'
 
+const cookbookVersion = ref<string | null>(null)
 const itemsPerPage = ref(50)
 const search = ref('')
 const page = ref(1)
@@ -365,7 +370,7 @@ const {
   remove: removeRecipe,
   get: getRecipes,
 } = useRecipes(token.value!)
-
+// cookbookVersions.value[0].version
 const {
   value: filterInput,
   debouncedValue: filterDebounce,
@@ -399,7 +404,10 @@ async function loadItems(
   page: number,
   pageSize: number,
 ): Promise<void> {
-  await getRecipes(filter, sort, category, page, pageSize)
+  if (cookbookVersion.value == null) return
+
+  await getRecipes(filter, sort, category, page, pageSize, cookbookVersion.value)
+
   totalItems.value = total.value!
   serverItems.value = recipes.value!
 }
@@ -448,7 +456,8 @@ function handleNameEnter(id: number, event: MouseEvent) {
   const text = cell.querySelector('.item-name-text') as HTMLElement | null
   if (!text) return
 
-  const isTruncated = text.scrollHeight > text.clientHeight + 1 || text.scrollWidth > text.clientWidth + 1
+  const isTruncated =
+    text.scrollHeight > text.clientHeight + 1 || text.scrollWidth > text.clientWidth + 1
   expandedNameId.value = isTruncated ? id : null
 }
 
@@ -518,7 +527,7 @@ onMounted(async () => {
   await loadDefault()
 })
 
-onBeforeUnmount(() => {
+onBeforeUnmount(async () => {
   window.removeEventListener('scroll', handleScroll, true)
 })
 </script>

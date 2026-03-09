@@ -4,7 +4,7 @@ import { buildAuthTokenHeader } from './useAuth'
 
 export type Export = 'default' | 'nurgling' | 'json'
 
-export function useExport(token: string) {
+export function useExport(token: string, cookbookVersion: string) {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const exported = ref()
@@ -17,7 +17,7 @@ export function useExport(token: string) {
     loading.value = true
     error.value = null
 
-    const response = await fetch(BASE_API_URL + `/export?${query}`, {
+    const response = await fetch(BASE_API_URL + `/${cookbookVersion}/export?${query}`, {
       method: 'GET',
       headers: buildAuthTokenHeader(token),
     })

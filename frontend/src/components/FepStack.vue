@@ -45,8 +45,8 @@ const props = defineProps<{ feps: FoodFEP[] }>()
 
 const fepNames = ['str', 'agi', 'int', 'con', 'prc', 'csm', 'dex', 'wil', 'psy'] as const
 
-function getFEPValue(name: string, multiplier: number): number | null {
+function getFEPValue(name: string, multiplier: number): string | null {
   const fep = props.feps.find((f) => f.name === name + multiplier)
-  return fep ? fep.value : null
+  return fep ? fep.value.toFixed(2) : null
 }
 </script>

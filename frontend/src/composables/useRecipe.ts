@@ -91,7 +91,14 @@ export function useRecipes(token: string) {
     recipesPage.value ? recipesPage.value.timestamps : null,
   )
 
-  async function get(filter: string, sort: Order, by: Category, page: number, length: number) {
+  async function get(
+    filter: string,
+    sort: Order,
+    by: Category,
+    page: number,
+    length: number,
+    cookbookVersion: string,
+  ) {
     const query = new URLSearchParams({
       filter: filter,
       sort: sort,
@@ -107,7 +114,7 @@ export function useRecipes(token: string) {
       data,
       error: APIerror,
       execute,
-    } = useAPI<FoodRecipesPage>(BASE_API_URL + `/recipes?${query}`, {
+    } = useAPI<FoodRecipesPage>(BASE_API_URL + `/${cookbookVersion}/recipes?${query}`, {
       method: 'GET',
       headers: buildAuthTokenHeader(token),
     })
