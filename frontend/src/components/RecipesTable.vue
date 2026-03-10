@@ -370,7 +370,7 @@ const {
   remove: removeRecipe,
   get: getRecipes,
 } = useRecipes(token.value!)
-// cookbookVersions.value[0].version
+
 const {
   value: filterInput,
   debouncedValue: filterDebounce,
