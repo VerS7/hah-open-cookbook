@@ -4,12 +4,12 @@ import { buildAuthTokenHeader } from './useAuth'
 
 export type Export = 'default' | 'nurgling' | 'json'
 
-export function useExport(token: string, cookbookVersion: string) {
+export function useExport(token: string) {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const exported = ref()
 
-  async function exportAs(exportType: Export) {
+  async function exportAs(exportType: Export, cookbookVersion: string) {
     const query = new URLSearchParams({
       type: exportType,
     })

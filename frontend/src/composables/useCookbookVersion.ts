@@ -6,19 +6,20 @@ export interface CookbookVersion {
   isArchived: boolean
 }
 
+const loading = ref(false)
+const error = ref<string | null>(null)
+const rawVersions = ref<string[] | null>(null)
+const selected = ref<string | null>(null)
+
+const versions = computed<CookbookVersion[] | null>(() => {
+  return rawVersions.value !== null
+    ? rawVersions.value.map(
+        (v) => ({ version: v, isArchived: v.includes('archived') }) as CookbookVersion,
+      )
+    : null
+})
+
 export function useCookbookVersions() {
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  const rawVersions = ref<string[] | null>(null)
-
-  const versions = computed<CookbookVersion[] | null>(() => {
-    return rawVersions.value !== null
-      ? rawVersions.value.map(
-          (v) => ({ version: v, isArchived: v.includes('archived') }) as CookbookVersion,
-        )
-      : null
-  })
-
   async function get() {
     loading.value = true
     error.value = null
@@ -37,5 +38,9 @@ export function useCookbookVersions() {
     loading.value = false
   }
 
-  return { versions, loading, error, get }
+  function select(version: string | null) {
+    selected.value = version
+  }
+
+  return { versions, loading, error, selected, get, select }
 }

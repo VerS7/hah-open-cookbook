@@ -22,9 +22,9 @@
 
 <script setup lang="ts">
 import { useCookbookVersions } from '@/composables/useCookbookVersion'
-import { onBeforeMount } from 'vue'
+import { onBeforeMount, watch } from 'vue'
 
-const { loading, error, versions, get } = useCookbookVersions()
+const { loading, error, versions, selected, get, select } = useCookbookVersions()
 
 const model = defineModel<string | null>({ default: null })
 
@@ -32,11 +32,27 @@ function handleSwitchVersion(version: string) {
   model.value = version
 }
 
+watch(
+  model,
+  (value) => {
+    if (value !== selected.value) {
+      select(value)
+    }
+  },
+  { immediate: true },
+)
+
 onBeforeMount(async () => {
   await get()
 
-  const hasSelectedVersion = versions.value?.some((v) => v.version === model.value) ?? false
-  if (hasSelectedVersion) {
+  const hasModelVersion = versions.value?.some((v) => v.version === model.value) ?? false
+  if (hasModelVersion) {
+    return
+  }
+
+  const hasSelectedVersion = versions.value?.some((v) => v.version === selected.value) ?? false
+  if (hasSelectedVersion && selected.value !== null) {
+    model.value = selected.value
     return
   }
 

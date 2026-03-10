@@ -12,13 +12,11 @@
   justify-content: center !important;
 }
 
-/* Стили для элементов меню */
 .export__item {
   min-height: 40px !important;
   padding: 0 12px !important;
 }
 
-/* Обеспечиваем одинаковую ширину */
 :deep(.v-list) {
   min-width: v-bind(menuWidth + 'px') !important;
   width: v-bind(menuWidth + 'px') !important;
@@ -32,7 +30,6 @@
 
 <template>
   <div class="export__wrapper">
-    <!-- Кнопка экспорта -->
     <v-btn
       v-if="!showMenu"
       class="export"
@@ -43,12 +40,11 @@
       @click="toggleMenu"
       :width="menuWidth"
       :loading="loading"
-      :disabled="loading"
+      :disabled="loading || selected === null"
     >
       Export As
     </v-btn>
 
-    <!-- Меню выбора формата -->
     <v-menu
       v-else
       location="bottom"
@@ -65,6 +61,7 @@
           prepend-icon="mdi-download"
           :width="menuWidth"
           class="export"
+          :disabled="selected === null"
         >
           Export As
         </v-btn>
@@ -90,6 +87,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
+import { useCookbookVersions } from '@/composables/useCookbookVersion'
 import { useExport, type Export } from '@/composables/UseExport'
 import { ref, onUnmounted } from 'vue'
 
@@ -105,6 +103,7 @@ const exportFormats: ExportFormat[] = [
 ]
 
 const { token } = useAuth()
+const { selected } = useCookbookVersions()
 const { loading, exportAs } = useExport(token.value!)
 
 const showMenu = ref(false)
@@ -147,13 +146,17 @@ function toggleMenu() {
 }
 
 async function handleExport(format: string) {
+  if (selected.value === null) {
+    return
+  }
+
   showMenu.value = false
 
   enableScroll()
 
   loading.value = true
   setTimeout(async () => {
-    await exportAs(format as Export)
+    await exportAs(format as Export, selected.value!)
   }, 3000)
 }
 
