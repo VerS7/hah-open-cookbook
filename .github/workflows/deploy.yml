@@ -10,8 +10,8 @@ name: Deploy
 # Optional repository variables:
 # VPS_PORT=22
 # APP_DEBUG=false
-# APP_DATABASE_FILE=/app/data/cookbook.db
 # DEPLOY_DATA_DIR=/opt/hah-open-cookbook/data
+# APP_DATA_DIR=/app/data
 
 on:
   workflow_dispatch:
@@ -86,8 +86,8 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ vars.VPS_PORT || '22' }}
           APP_DEBUG: ${{ vars.APP_DEBUG || 'false' }}
-          APP_DATABASE_FILE: ${{ vars.APP_DATABASE_FILE || '/app/data/cookbook.db' }}
           DEPLOY_DATA_DIR: ${{ vars.DEPLOY_DATA_DIR || '/opt/hah-open-cookbook/data' }}
+          APP_DATA_DIR: ${{ vars.APP_DATA_DIR || '/app/data' }}
           APP_ADMIN_USERNAME: ${{ secrets.APP_ADMIN_USERNAME }}
           APP_ADMIN_PASSWORD: ${{ secrets.APP_ADMIN_PASSWORD }}
           IMAGE: ${{ steps.artifact.outputs.image }}
@@ -97,8 +97,8 @@ jobs:
           IMAGE_B64="$(printf '%s' "${IMAGE}" | base64 -w 0)"
           REMOTE_ARCHIVE_B64="$(printf '%s' "${REMOTE_ARCHIVE}" | base64 -w 0)"
           APP_DEBUG_B64="$(printf '%s' "${APP_DEBUG}" | base64 -w 0)"
-          APP_DATABASE_FILE_B64="$(printf '%s' "${APP_DATABASE_FILE}" | base64 -w 0)"
           DEPLOY_DATA_DIR_B64="$(printf '%s' "${DEPLOY_DATA_DIR}" | base64 -w 0)"
+          APP_DATA_DIR_B64="$(printf '%s' "${APP_DATA_DIR}" | base64 -w 0)"
           APP_ADMIN_USERNAME_B64="$(printf '%s' "${APP_ADMIN_USERNAME}" | base64 -w 0)"
           APP_ADMIN_PASSWORD_B64="$(printf '%s' "${APP_ADMIN_PASSWORD}" | base64 -w 0)"
           CONTAINER_NAME_B64="$(printf '%s' "${CONTAINER_NAME}" | base64 -w 0)"
@@ -107,8 +107,8 @@ jobs:
             "IMAGE_B64='${IMAGE_B64}' \
             REMOTE_ARCHIVE_B64='${REMOTE_ARCHIVE_B64}' \
             APP_DEBUG_B64='${APP_DEBUG_B64}' \
-            APP_DATABASE_FILE_B64='${APP_DATABASE_FILE_B64}' \
             DEPLOY_DATA_DIR_B64='${DEPLOY_DATA_DIR_B64}' \
+            APP_DATA_DIR_B64='${APP_DATA_DIR_B64}' \
             APP_ADMIN_USERNAME_B64='${APP_ADMIN_USERNAME_B64}' \
             APP_ADMIN_PASSWORD_B64='${APP_ADMIN_PASSWORD_B64}' \
             CONTAINER_NAME_B64='${CONTAINER_NAME_B64}' \
@@ -122,12 +122,11 @@ jobs:
           IMAGE="$(decode "${IMAGE_B64}")"
           REMOTE_ARCHIVE="$(decode "${REMOTE_ARCHIVE_B64}")"
           APP_DEBUG="$(decode "${APP_DEBUG_B64}")"
-          APP_DATABASE_FILE="$(decode "${APP_DATABASE_FILE_B64}")"
           DEPLOY_DATA_DIR="$(decode "${DEPLOY_DATA_DIR_B64}")"
+          APP_DATA_DIR="$(decode "${APP_DATA_DIR_B64}")"
           APP_ADMIN_USERNAME="$(decode "${APP_ADMIN_USERNAME_B64}")"
           APP_ADMIN_PASSWORD="$(decode "${APP_ADMIN_PASSWORD_B64}")"
           CONTAINER_NAME="$(decode "${CONTAINER_NAME_B64}")"
-          APP_DATABASE_DIR="$(dirname "${APP_DATABASE_FILE}")"
 
           mkdir -p "${DEPLOY_DATA_DIR}"
 
@@ -141,9 +140,9 @@ jobs:
             --name "${CONTAINER_NAME}" \
             --restart unless-stopped \
             -p 127.0.0.1:80:80 \
-            -v "${DEPLOY_DATA_DIR}:${APP_DATABASE_DIR}" \
+            -v "${DEPLOY_DATA_DIR}:${APP_DATA_DIR}" \
             -e DEBUG="${APP_DEBUG}" \
-            -e DATABASE_FILE="${APP_DATABASE_FILE}" \
+            -e DATA_DIR="${APP_DATA_DIR}" \
             -e ADMIN_USERNAME="${APP_ADMIN_USERNAME}" \
             -e ADMIN_PASSWORD="${APP_ADMIN_PASSWORD}" \
             "${IMAGE}"
