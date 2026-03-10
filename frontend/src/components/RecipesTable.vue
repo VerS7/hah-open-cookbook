@@ -132,7 +132,10 @@
 </style>
 
 <template>
-  <cookbook-versions-bar v-model="cookbookVersion" @update:model-value="loadDefault">
+  <cookbook-versions-bar
+    v-model="cookbookVersion"
+    @update:model-value="handleCookbookVersionChange"
+  >
   </cookbook-versions-bar>
 
   <v-card rounded="xl" class="pa-5 table-container">
@@ -292,7 +295,6 @@
             @update:pageSize="
               (e: number) => {
                 itemsPerPage = e
-                load()
               }
             "
             @next="load"
@@ -307,6 +309,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import type { DataTableHeader } from 'vuetify'
+import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 
 import FepStack from './FepStack.vue'
 import FepBar from './FepBar.vue'
@@ -320,6 +323,9 @@ import { useAuth } from '@/composables/useAuth'
 import { useDebounce } from '@/composables/useDebounce'
 import { useScreenshot } from '@/composables/useScreenshot'
 import CookbookVersionsBar from './CookbookVersionsBar.vue'
+
+const route = useRoute()
+const router = useRouter()
 
 const cookbookVersion = ref<string | null>(null)
 const itemsPerPage = ref(50)
@@ -359,11 +365,14 @@ const stickyLoader = computed(() => ({
 const recipesRef = ref<HTMLElement | null>(null)
 const screenshotCapturing = ref(false)
 const { capture, download } = useScreenshot(recipesRef as Ref<HTMLElement>)
+const managedQueryKeys = ['v', 'q', 'l', 'p'] as const
+const supportedPageSizes = new Set([10, 20, 50, 100])
 
 const {
   recipes,
   total,
   pages,
+  page: loadedPage,
   timestamps,
   loading,
   error,
@@ -376,6 +385,74 @@ const {
   debouncedValue: filterDebounce,
   updateDebouncedValue: filterUpdate,
 } = useDebounce('', 1000)
+
+const hasRestoredQueryState = managedQueryKeys.some((key) => typeof route.query[key] === 'string')
+const pendingInitialQueryLoad = ref(hasRestoredQueryState)
+
+const parsePositiveInt = (value: unknown, fallback: number): number => {
+  if (typeof value !== 'string') return fallback
+
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+const restoredQuery = typeof route.query.q === 'string' ? route.query.q : ''
+const restoredVersion = typeof route.query.v === 'string' ? route.query.v : null
+const restoredPageLength = parsePositiveInt(route.query.l, itemsPerPage.value)
+const restoredPage = parsePositiveInt(route.query.p, page.value)
+
+if (restoredVersion) {
+  cookbookVersion.value = restoredVersion
+}
+
+search.value = restoredQuery
+page.value = restoredPage
+itemsPerPage.value = supportedPageSizes.has(restoredPageLength) ? restoredPageLength : 50
+
+function buildManagedQuery() {
+  if (search.value.length === 0 || cookbookVersion.value == null) {
+    return {}
+  }
+
+  return {
+    v: cookbookVersion.value,
+    q: search.value,
+    l: itemsPerPage.value.toString(),
+    p: page.value.toString(),
+  }
+}
+
+async function syncQueryState() {
+  const nextManagedQuery = buildManagedQuery()
+  const nextQuery: LocationQueryRaw = { ...route.query }
+
+  for (const key of managedQueryKeys) {
+    delete nextQuery[key]
+  }
+
+  Object.assign(nextQuery, nextManagedQuery)
+
+  const keys = Object.keys(nextQuery)
+  const currentKeys = Object.keys(route.query)
+  const isSameQuery =
+    keys.length === currentKeys.length &&
+    keys.every((key) => {
+      const nextValue = nextQuery[key]
+      const currentValue = route.query[key]
+
+      if (Array.isArray(nextValue) || Array.isArray(currentValue)) {
+        return JSON.stringify(nextValue) === JSON.stringify(currentValue)
+      }
+
+      return nextValue === currentValue
+    })
+
+  if (isSameQuery) {
+    return
+  }
+
+  await router.replace({ query: nextQuery })
+}
 
 async function load() {
   await loadItems(
@@ -401,15 +478,25 @@ async function loadItems(
   filter: string,
   sort: Order,
   category: Category,
-  page: number,
+  pageNumber: number,
   pageSize: number,
 ): Promise<void> {
   if (cookbookVersion.value == null) return
 
-  await getRecipes(filter, sort, category, page, pageSize, cookbookVersion.value)
+  await getRecipes(filter, sort, category, pageNumber, pageSize, cookbookVersion.value)
+  pendingInitialQueryLoad.value = false
+
+  if (error.value !== null) {
+    return
+  }
+
+  if (loadedPage.value !== null) {
+    page.value = loadedPage.value
+  }
 
   totalItems.value = total.value!
   serverItems.value = recipes.value!
+  await syncQueryState()
 }
 
 function handleInput() {
@@ -494,6 +581,15 @@ async function handleSort(value: Array<{ key: Category; order: Order }>) {
   await load()
 }
 
+async function handleCookbookVersionChange() {
+  if (pendingInitialQueryLoad.value) {
+    await load()
+    return
+  }
+
+  await loadDefault()
+}
+
 function formatDate(rawDate: string): string {
   const date = new Date(rawDate)
 
@@ -524,7 +620,10 @@ watch(itemsPerPage, async () => {
 
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll, true)
-  await loadDefault()
+
+  if (pendingInitialQueryLoad.value && cookbookVersion.value != null) {
+    await load()
+  }
 })
 
 onBeforeUnmount(async () => {

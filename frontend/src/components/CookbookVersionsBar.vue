@@ -35,6 +35,11 @@ function handleSwitchVersion(version: string) {
 onBeforeMount(async () => {
   await get()
 
+  const hasSelectedVersion = versions.value?.some((v) => v.version === model.value) ?? false
+  if (hasSelectedVersion) {
+    return
+  }
+
   const defaultVersion = versions.value?.filter((v) => !v.isArchived)[0]?.version
 
   if (defaultVersion !== undefined) {
