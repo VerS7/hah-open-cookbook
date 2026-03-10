@@ -10,11 +10,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/joho/godotenv"
+
 	"open-hah-cookbook/internal/api"
 	l "open-hah-cookbook/internal/logger"
 	"open-hah-cookbook/internal/storage"
-
-	"github.com/joho/godotenv"
 )
 
 var (
