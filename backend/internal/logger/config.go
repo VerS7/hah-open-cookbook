@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"time"
@@ -35,24 +36,26 @@ func (f *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	level := levels[entry.Level.String()]
 	frame := entry.Caller
 
-	msg := fmt.Sprintf("[%s] [%s] [%s:%d] - ",
+	msg := bytes.Buffer{}
+
+	msg.WriteString(fmt.Sprintf("[%s] [%s] [%s:%d] - ",
 		timestamp,
 		level,
 		frame.Function,
 		frame.Line,
-	)
+	))
 
 	if len(entry.Message) > 0 {
-		msg += entry.Message + " "
+		msg.WriteString(entry.Message + " ")
 	}
 
 	if len(entry.Data) > 0 {
 		for k, v := range entry.Data {
-			msg += fmt.Sprintf("%s=%v ", k, v)
+			msg.WriteString(fmt.Sprintf("%s=%v ", k, v))
 		}
 	}
 
-	msg += "\n"
+	msg.WriteString("\n")
 
-	return []byte(msg), nil
+	return msg.Bytes(), nil
 }
