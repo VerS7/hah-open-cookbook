@@ -398,7 +398,7 @@ func (st *Storage) GetFilteredRecipes(filterString string, sort string, by strin
 	}
 
 	nonZeroBy := make(map[string]string)
-	
+
 	// Sort category
 	category := make(map[string]string)
 	category["name"] = "name"

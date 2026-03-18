@@ -16,22 +16,12 @@
                 "focus": false,
                 "panel": "shared"
             }
-        },
-        {
-            "name": "Run Frontend",
-            "type": "node",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "cwd": "${workspaceFolder}/frontend",
-            "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "dev"]
         }
     ],
     "compounds": [
         {
             "name": "Run Project",
-            "configurations": ["Run Backend", "Run Frontend"]
+            "configurations": ["Run Backend"]
         }
     ]
 }

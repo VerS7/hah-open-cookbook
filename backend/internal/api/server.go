@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"sync"
 
-	"open-hah-cookbook/internal/auth"
 	l "open-hah-cookbook/internal/logger"
 	"open-hah-cookbook/internal/storage"
 )
@@ -112,64 +111,6 @@ func (sr *RecipesAPIServer) ExportHandler(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Length", strconv.Itoa(data.Len()))
 
 	data.WriteTo(w)
-}
-
-type UsersAPIServer struct {
-	Storage  *storage.Storage
-	sessions []storage.Session
-	mu       sync.RWMutex
-}
-
-func NewUsersAPIServer(st *storage.Storage) *UsersAPIServer {
-	return &UsersAPIServer{
-		st,
-		make([]storage.Session, 0),
-		sync.RWMutex{},
-	}
-}
-
-func (sr *UsersAPIServer) UpdateSessions() error {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-
-	sessions, err := sr.Storage.GetSessions()
-	if err != nil {
-		return err
-	}
-	sr.sessions = sessions
-	return nil
-}
-
-func (sr *UsersAPIServer) HasSession(token string) *storage.Session {
-	sr.mu.RLock()
-	defer sr.mu.RUnlock()
-
-	for _, s := range sr.sessions {
-		if s.AccessToken == token {
-			return &s
-		}
-	}
-	return nil
-}
-
-func (sr *UsersAPIServer) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-
-	if len(username) == 0 || len(password) == 0 {
-		WriteJSON(w, http.StatusBadRequest, H{"error": "invalid login form"})
-		return
-	}
-
-	ud, err := sr.Storage.GetUserByName(username)
-	if err != nil || ud.HashedPassword != auth.Hash(password) {
-		WriteJSON(w, http.StatusUnauthorized, H{"error": "invalid username or password"})
-		return
-	}
-
-	sr.UpdateSessions()
-
-	WriteJSON(w, http.StatusOK, H{"username": ud.Name, "token": ud.AccessToken, "isAdmin": ud.IsAdmin})
 }
 
 func TODOHandler(w http.ResponseWriter, r *http.Request) {

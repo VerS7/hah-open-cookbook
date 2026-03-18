@@ -1,4 +1,10 @@
 misc
+frontend
+backup.sh
+crontab.root
+nginx.conf
+supervisord.conf
+.github
 *.env
 *.db
 *.exe*

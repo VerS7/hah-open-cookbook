@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -64,7 +63,7 @@ func getDataFiles(dataDir string) []string {
 }
 
 func main() {
-	requireEnv("DEBUG", "DATA_DIR", "ADMIN_USERNAME", "ADMIN_PASSWORD")
+	requireEnv("DEBUG", "DATA_DIR")
 
 	// Parse DEBUG-mode from env
 	var DEBUG bool
@@ -86,20 +85,6 @@ func main() {
 		filename := strings.Replace(filepath.Base(datapath), filepath.Ext(datapath), "", 1)
 
 		l.Default.Infof("initializing storage with name: '%s' at '%s'...", filename, datapath)
-
-		// Special case for users.db
-		if filename == "users" {
-			if _, err := aggregator.NewStorage(storage.StorageEntryConfig{
-				Name:    filename,
-				File:    datapath,
-				Alias:   "users",
-				Schemas: []string{storage.USERS},
-			}); err != nil {
-				l.Default.Fatal(err)
-			}
-
-			continue
-		}
 
 		// Special case for archived bases
 		if strings.Contains(filename, "archived") {
@@ -126,31 +111,7 @@ func main() {
 		}
 	}
 
-	// Fallback if users.db not presented
-	if !slices.ContainsFunc(dataFiles, func(v string) bool {
-		return strings.Contains(filepath.Base(v), "users")
-	}) {
-		l.Default.Warn("fallback at initializing 'users' database. Created blank database")
-
-		if _, err := aggregator.NewStorage(storage.StorageEntryConfig{
-			Name:    "users",
-			File:    os.Getenv("DATA_DIR") + "users.db",
-			Alias:   "users",
-			Schemas: []string{storage.USERS},
-		}); err != nil {
-			l.Default.Fatal(err)
-		}
-	}
-
 	defer aggregator.CloseAll()
-
-	// Default admin
-	users, _ := aggregator.GetEntry("users")
-	users.Storage.AddUser(os.Getenv("ADMIN_USERNAME"), os.Getenv("ADMIN_PASSWORD"), true)
-
-	// Users server
-	usersServer := api.NewUsersAPIServer(users.Storage)
-	go usersServer.UpdateSessions()
 
 	// Recipes servers
 	recipeServers := make(map[string]*api.RecipesAPIServer)
@@ -159,54 +120,33 @@ func main() {
 	cookbookVersions := make([]string, 0)
 
 	for _, aggregatorEntry := range aggregator.GetEntries() {
-		// Skip Users storage, only recipes
-		if aggregatorEntry.Alias != "users" {
-			recipeServers[aggregatorEntry.Alias] = api.NewRecipesAPIServer(aggregatorEntry.Storage)
-			cookbookVersions = append(cookbookVersions, aggregatorEntry.Alias)
-		}
+		recipeServers[aggregatorEntry.Alias] = api.NewRecipesAPIServer(aggregatorEntry.Storage)
+		cookbookVersions = append(cookbookVersions, aggregatorEntry.Alias)
 	}
 
 	l.Default.Infof("cookbook versions found: '%s'", strings.Join(cookbookVersions, ", "))
 
 	rootMux := http.NewServeMux()
-	apiMux := http.NewServeMux()
-	sharedMux := http.NewServeMux()
-	adminMux := http.NewServeMux()
-
-	// .../api/...
-	apiMux.HandleFunc("POST /login", usersServer.LoginHandler)
 
 	// Cookbook versions (e.g. w161, w16, old...)
-	apiMux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
-
+	rootMux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		api.WriteJSON(w, 200, cookbookVersions)
 	})
 
-	adminMux.HandleFunc("POST /users", api.TODOHandler)
-	adminMux.HandleFunc("GET /users", api.TODOHandler)
-	adminMux.HandleFunc("GET /users/{id}", api.TODOHandler)
-	adminMux.HandleFunc("DELETE /users/{id}", api.TODOHandler)
-
 	for name, recipeServer := range recipeServers {
 		// .../api/[cookbook version]/... with USER auth
-		sharedMux.HandleFunc(fmt.Sprintf("GET /%s/recipes", name), recipeServer.FilteredQueryHandler)
-		sharedMux.HandleFunc(fmt.Sprintf("GET /%s/export", name), recipeServer.ExportHandler)
+		rootMux.HandleFunc(fmt.Sprintf("GET /api/%s/recipes", name), recipeServer.FilteredQueryHandler)
+		rootMux.HandleFunc(fmt.Sprintf("GET /api/%s/export", name), recipeServer.ExportHandler)
+
 		// Users can send recipes only to non-archived cookbooks
 		if !strings.Contains(name, "archived") {
 			go recipeServer.RunRecipeListener()
 
-			sharedMux.HandleFunc(fmt.Sprintf("POST /%s/recipe", name), recipeServer.RecipeHandler)
+			rootMux.HandleFunc(fmt.Sprintf("POST /api/%s/recipe", name), recipeServer.RecipeHandler)
 		}
 
-		// .../api/[cookbook version]/... with ADMIN auth
-		adminMux.HandleFunc(fmt.Sprintf("DELETE /%s/recipe/{id}", name), recipeServer.RecipeHandler)
+		rootMux.HandleFunc(fmt.Sprintf("DELETE /api/%s/recipe/{id}", name), recipeServer.RecipeHandler)
 	}
-
-	sharedHandler := usersServer.AuthMiddleware(sharedMux)
-	adminHandler := usersServer.AdminMiddleware(adminMux)
-	apiMux.Handle("/", sharedHandler)
-	apiMux.Handle("/admin", adminHandler)
-	rootMux.Handle("/api/", http.StripPrefix("/api", apiMux))
 
 	coreHandler := api.RecoveryMiddleware(api.LoggingMiddleware(rootMux))
 	if DEBUG {

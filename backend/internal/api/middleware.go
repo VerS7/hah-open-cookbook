@@ -78,50 +78,6 @@ func AllowCORSMiddleware(next http.Handler) http.Handler {
 	)
 }
 
-func (sr *UsersAPIServer) AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			token, err := getAuthTokenFromHeaders(r)
-			if err != nil {
-				WriteJSON(w, http.StatusBadRequest, H{"error": "no authorization header provided"})
-				return
-			}
-
-			if s := sr.HasSession(token); s != nil {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			WriteJSON(w, http.StatusUnauthorized, H{"error": "no authorization"})
-		},
-	)
-}
-
-func (sr *UsersAPIServer) AdminMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			token, err := getAuthTokenFromHeaders(r)
-			if err != nil {
-				WriteJSON(w, http.StatusBadRequest, H{"error": "no authorization header provided"})
-				return
-			}
-
-			s := sr.HasSession(token)
-			if s == nil {
-				WriteJSON(w, http.StatusUnauthorized, H{"error": "no authorization"})
-				return
-			}
-
-			if !s.IsAdmin {
-				WriteJSON(w, http.StatusForbidden, H{"error": "no admin privileges"})
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		},
-	)
-}
-
 type statusInterceptor struct {
 	http.ResponseWriter
 	status int

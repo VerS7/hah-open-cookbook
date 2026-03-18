@@ -42,17 +42,4 @@ const (
 			rate INTEGER NOT NULL
 		);
 	`
-
-	USERS = `
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			name TEXT NOT NULL,
-			hashed_password TEXT NOT NULL UNIQUE,
-			access_token TEXT NOT NULL UNIQUE,
-			is_admin INTEGER NOT NULL
-		);
-
-		CREATE INDEX IF NOT EXISTS users_access_token ON users(access_token);
-	`
 )

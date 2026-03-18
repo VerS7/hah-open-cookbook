@@ -1,1 +1,0 @@
-0 0 * * * . /app/cron.env; /bin/sh /app/backup.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
