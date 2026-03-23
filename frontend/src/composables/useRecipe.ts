@@ -125,14 +125,17 @@ export function useRecipes(token: string) {
     loading.value = false
   }
 
-  async function remove(id: number) {
+  async function remove(id: number, cookbookVersion: string) {
     loading.value = true
     error.value = null
 
-    const { error: APIerror, execute } = useAPI<FoodRecipesPage>(BASE_API_URL + `/recipe/` + id, {
-      method: 'DELETE',
-      headers: buildAuthTokenHeader(token),
-    })
+    const { error: APIerror, execute } = useAPI<FoodRecipesPage>(
+      BASE_API_URL + `/admin/${cookbookVersion}/recipe/${id}`,
+      {
+        method: 'DELETE',
+        headers: buildAuthTokenHeader(token),
+      },
+    )
 
     await execute()
 

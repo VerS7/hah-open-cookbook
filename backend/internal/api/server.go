@@ -62,6 +62,27 @@ func (sr *RecipesAPIServer) RecipeHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
+func (sr *RecipesAPIServer) RecipeDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	if len(idStr) == 0 {
+		WriteJSON(w, http.StatusBadRequest, H{"error": "recipe 'id' not provided"})
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, H{"error": "incorrect recipe 'id'"})
+		return
+	}
+
+	if err := sr.Storage.RemoveRecipe(id); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, H{"error": fmt.Sprintf("cant remove recipe with 'id': %d", id)})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (sr *RecipesAPIServer) FilteredQueryHandler(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	by := r.URL.Query().Get("by")

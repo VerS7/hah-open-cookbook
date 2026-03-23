@@ -257,7 +257,17 @@
 
         <template #[`item.id`]="{ item }">
           <template v-if="isAdmin && !screenshotCapturing">
-            <v-btn icon="mdi-close" size="xs" variant="flat" @click="removeRecipe(item.id)"></v-btn>
+            <v-btn
+              icon="mdi-close"
+              size="xs"
+              variant="flat"
+              @click="
+                async () => {
+                  await removeRecipe(item.id, cookbookVersion!)
+                  await load()
+                }
+              "
+            ></v-btn>
           </template>
         </template>
 

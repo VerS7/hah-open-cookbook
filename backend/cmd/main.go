@@ -198,14 +198,14 @@ func main() {
 			sharedMux.HandleFunc(fmt.Sprintf("POST /%s/recipe", name), recipeServer.RecipeHandler)
 		}
 
-		// .../api/[cookbook version]/... with ADMIN auth
-		adminMux.HandleFunc(fmt.Sprintf("DELETE /%s/recipe/{id}", name), recipeServer.RecipeHandler)
+		// .../api/admin/[cookbook version]/... with ADMIN auth
+		adminMux.HandleFunc(fmt.Sprintf("DELETE /%s/recipe/{id}", name), recipeServer.RecipeDeleteHandler)
 	}
 
 	sharedHandler := usersServer.AuthMiddleware(sharedMux)
 	adminHandler := usersServer.AdminMiddleware(adminMux)
 	apiMux.Handle("/", sharedHandler)
-	apiMux.Handle("/admin", adminHandler)
+	apiMux.Handle("/admin/", http.StripPrefix("/admin", adminHandler))
 	rootMux.Handle("/api/", http.StripPrefix("/api", apiMux))
 
 	coreHandler := api.RecoveryMiddleware(api.LoggingMiddleware(rootMux))
